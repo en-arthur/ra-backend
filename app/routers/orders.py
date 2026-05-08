@@ -33,6 +33,14 @@ def list_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
         q = q.filter(Order.status == status)
     return q.all()
 
+@router.get("/confirmation/{order_id}", response_model=OrderResponse)
+def get_order_confirmation(order_id: UUID, db: Session = Depends(get_db)):
+    """Public endpoint — only returns safe fields for order confirmation page"""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail=error_response("NOT_FOUND", "Order not found"))
+    return order
+
 @router.get("/{order_id}", response_model=OrderResponse, dependencies=[Depends(require_admin)])
 def get_order(order_id: UUID, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == order_id).first()
