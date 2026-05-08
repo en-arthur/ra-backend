@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from uuid import UUID
 import httpx
+import hmac
+import hashlib
 from app.database import get_db
 from app.models.order import Order
 from app.config import settings
@@ -18,7 +20,7 @@ def paystack_headers():
 class InitializeRequest(BaseModel):
     order_id: UUID
     email: str
-    amount_ghs: float  # in GHS, we convert to pesewas
+    amount_ghs: float
 
 @router.post("/initialize")
 async def initialize_payment(data: InitializeRequest, db: Session = Depends(get_db)):
@@ -66,7 +68,6 @@ async def verify_payment(reference: str, db: Session = Depends(get_db)):
     status = data["status"]
 
     if status == "success":
-        # Update order payment status
         order = db.query(Order).filter(Order.id == reference).first()
         if order:
             order.payment_status = "paid"
@@ -74,3 +75,30 @@ async def verify_payment(reference: str, db: Session = Depends(get_db)):
             db.commit()
 
     return {"status": status, "reference": reference}
+
+@router.post("/webhook")
+async def paystack_webhook(request: Request, db: Session = Depends(get_db)):
+    # Verify webhook signature
+    signature = request.headers.get("x-paystack-signature", "")
+    body = await request.body()
+    expected = hmac.new(
+        settings.paystack_secret_key.encode(),
+        body,
+        hashlib.sha512
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    payload = await request.json()
+    event = payload.get("event")
+
+    if event == "charge.success":
+        reference = payload["data"]["reference"]
+        order = db.query(Order).filter(Order.id == reference).first()
+        if order and order.payment_status != "paid":
+            order.payment_status = "paid"
+            order.status = "processing"
+            db.commit()
+
+    return {"status": "ok"}
