@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import auth, products, orders, inventory, upload
+from app.routers import auth, products, orders, inventory, upload, paystack
 
 app = FastAPI(title="RefinedAspect API", version="1.0.0")
 
