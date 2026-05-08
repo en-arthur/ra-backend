@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_role_key: str
 
+    # Paystack
+    paystack_secret_key: str
+
     cors_origins: str = "http://localhost:3000,http://localhost:3001"
 
     class Config:

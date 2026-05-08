@@ -18,6 +18,7 @@ app.include_router(products.router)
 app.include_router(orders.router)
 app.include_router(inventory.router)
 app.include_router(upload.router)
+app.include_router(paystack.router)
 
 @app.get("/health")
 def health():
