@@ -8,7 +8,23 @@ from app.schemas.order import OrderCreate, OrderStatusUpdate, OrderResponse
 from app.middleware.auth import require_admin
 from app.utils.errors import error_response
 
+from app.models.customer_order import CustomerOrder
+
 router = APIRouter(prefix="/api/orders", tags=["orders"])
+
+@router.get("/unviewed/{phone}")
+def get_unviewed_count(phone: str, db: Session = Depends(get_db)):
+    count = db.query(CustomerOrder).filter(
+        CustomerOrder.phone == phone,
+        CustomerOrder.viewed == False
+    ).count()
+    return {"count": count}
+
+@router.patch("/viewed/{order_id}")
+def mark_order_viewed(order_id: UUID, db: Session = Depends(get_db)):
+    db.query(CustomerOrder).filter(CustomerOrder.order_id == order_id).update({"viewed": True})
+    db.commit()
+    return {"ok": True}
 
 @router.post("/track", response_model=List[OrderResponse])
 def track_orders(phone: dict, db: Session = Depends(get_db)):
@@ -38,6 +54,11 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
         total_usd=data.total_usd,
     )
     db.add(order)
+    db.flush()  # get order.id before commit
+
+    if data.customer_phone:
+        db.add(CustomerOrder(phone=data.customer_phone, order_id=order.id))
+
     db.commit()
     db.refresh(order)
     return order
