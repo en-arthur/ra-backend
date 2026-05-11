@@ -10,6 +10,22 @@ from app.utils.errors import error_response
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
+@router.post("/track", response_model=List[OrderResponse])
+def track_orders(phone: dict, db: Session = Depends(get_db)):
+    phone_number = phone.get("phone", "").strip()
+    if not phone_number:
+        raise HTTPException(status_code=400, detail=error_response("MISSING_PHONE", "Phone number required"))
+    orders = db.query(Order).filter(Order.customer_phone == phone_number).order_by(Order.created_at.desc()).all()
+    return orders
+
+@router.post("/track", response_model=List[OrderResponse])
+def track_orders(payload: dict, db: Session = Depends(get_db)):
+    phone = payload.get("phone", "").strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail=error_response("MISSING_PHONE", "Phone number required"))
+    orders = db.query(Order).filter(Order.customer_phone == phone).order_by(Order.created_at.desc()).all()
+    return orders
+
 @router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 def create_order(data: OrderCreate, db: Session = Depends(get_db)):
     order = Order(
