@@ -95,6 +95,14 @@ def get_order(order_id: UUID, db: Session = Depends(get_db)):
     return order
 
 
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+def delete_order(order_id: UUID, db: Session = Depends(get_db)):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail=error_response("NOT_FOUND", "Order not found"))
+    db.delete(order)
+    db.commit()
+
 @router.patch("/{order_id}/status", response_model=OrderResponse, dependencies=[Depends(require_admin)])
 def update_order_status(order_id: UUID, data: OrderStatusUpdate, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == order_id).first()
