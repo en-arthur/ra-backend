@@ -39,7 +39,30 @@ def mark_order_viewed(order_id: UUID, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-@router.post("/track", response_model=List[OrderResponse])
+@router.get("/customers", dependencies=[Depends(require_admin)])
+def get_customers(db: Session = Depends(get_db)):
+    orders = db.query(Order).order_by(Order.created_at.desc()).all()
+    customers = {}
+    for o in orders:
+        key = o.customer_phone or o.customer_email
+        if not key:
+            continue
+        if key not in customers:
+            customers[key] = {
+                "name": o.customer_name,
+                "email": o.customer_email,
+                "phone": o.customer_phone,
+                "city": o.shipping_address.get("city") if o.shipping_address else None,
+                "region": o.shipping_address.get("region") if o.shipping_address else None,
+                "order_count": 0,
+                "total_spent": 0.0,
+                "last_order_date": o.created_at,
+            }
+        customers[key]["order_count"] += 1
+        customers[key]["total_spent"] += float(o.total_ghs or 0)
+        if o.created_at > customers[key]["last_order_date"]:
+            customers[key]["last_order_date"] = o.created_at
+    return list(customers.values())
 def track_orders(payload: dict, db: Session = Depends(get_db)):
     phone = normalize_phone(payload.get("phone", ""))
     if not phone:
