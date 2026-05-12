@@ -44,7 +44,7 @@ def get_customers(db: Session = Depends(get_db)):
     orders = db.query(Order).order_by(Order.created_at.desc()).all()
     customers = {}
     for o in orders:
-        key = o.customer_phone or o.customer_email
+        key = o.customer_phone or o.customer_email or o.customer_name
         if not key:
             continue
         if key not in customers:
@@ -63,6 +63,9 @@ def get_customers(db: Session = Depends(get_db)):
         if o.created_at > customers[key]["last_order_date"]:
             customers[key]["last_order_date"] = o.created_at
     return list(customers.values())
+
+
+@router.post("/track")
 def track_orders(payload: dict, db: Session = Depends(get_db)):
     phone = normalize_phone(payload.get("phone", ""))
     if not phone:
